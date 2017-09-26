@@ -5,7 +5,11 @@
 ## Установка
 
 ```console
-go get -u github.com/KatharsisTL/gencode
+/*go get -u github.com/KatharsisTL/gencode*/
+git clone https://github.com/KatharsisTL/gencode.git
+cd ./gencode
+go build ./
+sudo ln -s ./gencode /usr/local/bin/gencode
 ```
 
 ## Описание

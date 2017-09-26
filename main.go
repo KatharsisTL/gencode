@@ -28,9 +28,9 @@ func readInputParams(args []string) InputParams {
 	for _, elem := range args {
 		if strings.Contains(elem, "-in=") {
 			s.In = getValue(elem)
-		} else if strings.Contains(elem, "-out") {
+		} else if strings.Contains(elem, "-out=") {
 			s.Out = getValue(elem)
-		} else if strings.Contains(elem, "-sett") {
+		} else if strings.Contains(elem, "-sett=") {
 			s.Sett = getValue(elem)
 		}
 	}

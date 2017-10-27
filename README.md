@@ -8,7 +8,16 @@
 git clone https://github.com/KatharsisTL/gencode.git
 cd ./gencode
 go build ./
-sudo ln -s ./gencode /usr/local/bin/gencode
+
+sudo ln -s /path/to/gencode_folder/gencode /usr/local/bin/gencode
+или
+sudo ln -s /$GOPATH/src/github.com/gencode/gencode /$GOPATH/bin/gencode
+```
+
+## Использование
+
+```console
+gencode -in=./template.tmpl -sett=./settings.sett -out=./TestEntity.go
 ```
 
 ## Описание

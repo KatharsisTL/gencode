@@ -6,6 +6,7 @@ import (
 	"log"
 	"bufio"
 	"io/ioutil"
+	"bytes"
 )
 
 type InputParams struct {
@@ -69,7 +70,9 @@ func readSettFile(params InputParams) (m map[string]string) {
 			if err != nil {
 				b = false
 			}
-			m[getName(line)] = getValue(line[:len(line)-1])
+			bts := bytes.TrimSuffix([]byte(line), []byte("\n"))
+			line = string(bts)
+			m[getName(line)] = getValue(line)
 		}
 	}
 	return m

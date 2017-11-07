@@ -2,11 +2,8 @@ package main
 
 import (
 	"os"
+	"gencode/gen"
 	"strings"
-	"log"
-	"bufio"
-	"io/ioutil"
-	"bytes"
 )
 
 type InputParams struct {
@@ -17,27 +14,28 @@ type InputParams struct {
 
 func main() {
 	params := readInputParams(os.Args[1:])
-	s := readInFile(params)
-	m := readSettFile(params)
-	s = processTemplate(s, m)
-	saveOutFile(params, s)
+	s := gen.ReadTemplateFile(params.In)
+	m := gen.ReadSettFile(params.Sett)
+	s1 := gen.ProcessTemplate(s, m)
+	gen.SaveOutFile(params.Out, s1)
 }
+
 
 //Считываем входные параметры
 func readInputParams(args []string) InputParams {
 	s := InputParams{}
 	for _, elem := range args {
 		if strings.Contains(elem, "-in=") {
-			s.In = getValue(elem)
+			s.In = gen.GetValue(elem)
 		} else if strings.Contains(elem, "-out=") {
-			s.Out = getValue(elem)
+			s.Out = gen.GetValue(elem)
 		} else if strings.Contains(elem, "-sett=") {
-			s.Sett = getValue(elem)
+			s.Sett = gen.GetValue(elem)
 		}
 	}
 	return s
 }
-
+/*
 //Из строки name=value возвращает name
 func getName(s string) (res string) {
 	i := strings.Index(s, "=")
@@ -111,4 +109,4 @@ func saveOutFile(params InputParams, s string) {
 	} else {
 		log.Println("Файл "+params.Out+" уже существует")
 	}
-}
+}*/

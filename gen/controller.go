@@ -1,6 +1,6 @@
 package gen
 
-import (
+/*import (
 	"os"
 	"log"
 	"encoding/json"
@@ -119,4 +119,4 @@ func (c *ControllerSettings) GenerateControllerFile() {
 	tmpl := ReadTemplateFile(c.TemplatePath)
 	s1 := ProcessTemplate(tmpl, m)
 	SaveOutFile(c.OutPath, s1)
-}
+}*/

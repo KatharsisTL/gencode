@@ -33,14 +33,32 @@ type Field struct {
 	CheckCreate bool
 	//Флаг, участвует ли поле в проверке редактирования объекта
 	CheckUpdate bool
+
+	//Формирование view
+	//Отображать ли поле в таблице
+	ShowInTable bool
+	Sortable bool
+	//Отображать ли поле в окне редактирования
+	ShowInEdit bool
+	SelectSettings SelectSettings
+}
+
+type SelectSettings struct {
+	EntityType string
+	JoinStr string
+	ModelName string
+	GetUrl string
 }
 
 type Model struct {
 	Name string
 	UserDescr string
+	//Название таблицы,
+	TableTitle string
 	TableName string
 	Fields []Field
 	ControllerSettings ControllerSettings
+	ViewSettings ViewSettings
 }
 
 type ControllerSettings struct {
@@ -50,7 +68,14 @@ type ControllerSettings struct {
 	SelectOrder string
 	//go. bool-выражение
 	UpdateRight string
+}
 
+type ViewSettings struct {
+	//Js
+	//{prop: 'Name' order: 'ascending'}
+	//{prop: 'Name' order: 'descending'}
+	//{prop: 'Name'} (в этом случае order устанавливается по-умолчанию в ascending)
+	TableDefaultSort string
 }
 
 //Сохраняет файл на жесткий диск
@@ -83,7 +108,13 @@ func (m *Model) Load(filePath string) {
 func (m *Model) GenerateModelFile(filePath string) {
 	s := "package models\n\ntype "+m.GetNameTitle()+" struct {\n"
 	for _, fld := range m.Fields {
-		s += "\t"+fld.Name+" "+fld.Type
+		if strings.ToLower(fld.Type) == "password" {
+			s += "\t"+fld.Name+" string"
+		} else if strings.ToLower(fld.Type) == "select" {
+			s += "\t"+fld.Name+" "+strings.Title(fld.SelectSettings.EntityType)
+		} else {
+			s += "\t"+fld.Name+" "+fld.Type
+		}
 		if fld.AdditionPrefix != "" {
 			s += " `"+fld.AdditionPrefix
 			if fld.AdditionPostfix != "" {
@@ -124,6 +155,18 @@ func (m *Model) GetNameLower() string {
 
 //Генерация файла таблицы
 func (m *Model) GenerateTableFile(templateFilePath string, outFilePath string) {
+	tmpl := ReadTemplateFile(templateFilePath)
+
+	//Заплняем блок Accessories-----------------------------------------------------------
+	accStr := ""
+	for _, fld := range m.Fields {
+		if strings.ToLower(fld.Type) == "select" {
+			accStr += "\t\t\t\t"+strings.ToLower(fld.Name)+": [],\n"
+		}
+	}
+	tmpl = strings.Replace(tmpl, "{{Accessories}}", accStr, -1)
+	//------------------------------------------------------------------------------------
+
 	//Заполняем блок Entity---------------------------------------------------------------
 	entityStr := m.GetNameLower()+": {\n"
 	for _, fld := range m.Fields {
@@ -135,7 +178,6 @@ func (m *Model) GenerateTableFile(templateFilePath string, outFilePath string) {
 		}
 	}
 	entityStr += "\t\t\t},"
-	tmpl := ReadTemplateFile(templateFilePath)
 	tmpl = strings.Replace(tmpl, "{{Entity}}", entityStr, -1)
 	//-----------------------------------------------------------------------------------
 
@@ -204,9 +246,9 @@ func (m *Model) GenerateTableFile(templateFilePath string, outFilePath string) {
 	changeCloseStr += "\t\t\tthis.editDialog.title = \"\";\n"
 	for _, fld := range m.Fields {
 		if fld.Type == "string" {
-			changeStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = \"\";\n"
+			changeCloseStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = \"\";\n"
 		} else if fld.Type == "int" {
-			changeStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = 0;\n"
+			changeCloseStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = 0;\n"
 		}
 	}
 	changeCloseStr += "\t\t\tthis.editDialog.visible = false;\n"
@@ -244,6 +286,17 @@ func (m *Model) GenerateControllerFile(templateFilePath string, outFilePath stri
 	tmpl = strings.Replace(tmpl, "{{SelectOrder}}", m.ControllerSettings.SelectOrder, -1)
 	tmpl = strings.Replace(tmpl, "{{UpdateRight}}", m.ControllerSettings.UpdateRight, -1)
 
+	//Формирование блока Join------------------------------------------------------------
+	joinStr := ""
+	for _, fld := range m.Fields {
+		if fld.Type == "select" && fld.SelectSettings.JoinStr != "" {
+			joinStr += "."+fld.SelectSettings.JoinStr
+		}
+	}
+	joinStr += "."
+	tmpl = strings.Replace(tmpl, "{{Join}}", joinStr, -1)
+	//-----------------------------------------------------------------------------------
+
 	//Формирование проверки создания объекта-------------------------------------------------------------------------
 	createWhereString := ""
 	createWhereParams := ""
@@ -267,7 +320,7 @@ func (m *Model) GenerateControllerFile(templateFilePath string, outFilePath stri
 	tmpl = strings.Replace(tmpl, "{{CreateWhereParams}}", createWhereParams, -1)
 	//---------------------------------------------------------------------------------------------------------------
 
-	//Формирование проверки редактирования объекта-------------------------------------------------------------------------
+	//Формирование проверки редактирования объекта-------------------------------------------------------------------
 	updateWhereString := ""
 	updateWhereParams := ""
 	for _, fld := range m.Fields {
@@ -301,6 +354,67 @@ func (m *Model) GenerateControllerFile(templateFilePath string, outFilePath stri
 	tmpl = strings.Replace(tmpl, "{{UpdateWhereParams}}", updateWhereParams, -1)
 	//---------------------------------------------------------------------------------------------------------------
 
-	//Сохраняем сформированный файл------------------------------------------------------
+	//Сохраняем сформированный файл----------------------------------------------------------------------------------
+	SaveOutFile(outFilePath, tmpl)
+}
+
+//Генерация файла контроллера
+func (m *Model) GenerateViewFile(templateFilePath string, outFilePath string) {
+	//Считываем файл шаблона
+	tmpl := ReadTemplateFile(templateFilePath)
+
+	//Заменяем имя сущности с маленькой буквы------------------------------------------------------------------------
+	tmpl = strings.Replace(tmpl, "<<<EntityName>>>", m.GetNameLower(), -1)
+	tmpl = strings.Replace(tmpl, "<<<TableTitle>>>", m.TableTitle, -1)
+	//---------------------------------------------------------------------------------------------------------------
+
+	tmpl = strings.Replace(tmpl, "<<<DefaultSort>>>", m.ViewSettings.TableDefaultSort, -1)
+
+	//Список столбцов------------------------------------------------------------------------------------------------
+	colStr := ""
+	for _, fld := range m.Fields {
+		if fld.ShowInTable {
+			sortable := ""
+			if fld.Sortable {
+				sortable = "sortable=\"custom\""
+			}
+			if fld.JsFldName != "" {
+				colStr += "      el-table-column prop=\""+fld.JsFldName+"\" label=\""+fld.UserDescr+"\" "+sortable+"\n"
+			} else {
+				colStr += "      el-table-column prop=\""+fld.Name+"\" label=\""+fld.UserDescr+"\" "+sortable+"\n"
+			}
+		}
+	}
+	tmpl = strings.Replace(tmpl, "<<<Columns>>>", colStr, -1)
+	//---------------------------------------------------------------------------------------------------------------
+
+	//Формируем список полей для блока редактирования-----------------------------------------------------------------------------------------
+	editFieldsStr := ""
+	for _, fld := range m.Fields {
+		if fld.ShowInEdit {
+			switch fld.Type {
+			case "string":
+				editFieldsStr += "    el-form-item label=\""+strings.Title(fld.UserDescr)+"\" prop=\""+strings.Title(fld.Name)+"\"\n"
+				editFieldsStr += "      el-input v-model=\"table.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+"\"\n"
+			case "int":
+				editFieldsStr += "    el-form-item label=\""+strings.Title(fld.UserDescr)+"\" prop=\""+strings.Title(fld.Name)+"\"\n"
+				minMax := ""
+				if fld.MinIntVal != 0 || fld.MaxIntVal != 0 {
+					minMax = ":min=\""+strconv.Itoa(fld.MinIntVal)+"\" :max=\""+strconv.Itoa(fld.MaxIntVal)+"\""
+				}
+				editFieldsStr += "      el-input-number style=\"width: 100%;\" v-model=\"table.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+"\" "+minMax+"\n"
+			case "password":
+				editFieldsStr += "    el-form-item label=\""+strings.Title(fld.UserDescr)+"\" prop=\""+strings.Title(fld.Name)+"\"\n"
+				editFieldsStr += "      el-input type=\"password\" v-model=\"table.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+"\"\n"
+			case "select":
+				editFieldsStr += "    el-form-item label=\""+strings.Title(fld.UserDescr)+"\" prop=\""+strings.Title(fld.SelectSettings.ModelName)+"\"\n"
+				editFieldsStr += "      el-select style=\"width: 100%;\" v-model=\"table.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.SelectSettings.ModelName)+"\" placeholder=\""+strings.Title(fld.UserDescr)+"\"\n"
+			}
+		}
+	}
+	tmpl = strings.Replace(tmpl, "<<<EditFields>>>", editFieldsStr, -1)
+	//---------------------------------------------------------------------------------------------------------------
+
+	//Сохраняем сформированный файл
 	SaveOutFile(outFilePath, tmpl)
 }

@@ -1,0 +1,5 @@
+{
+    "TemplatePath":"./templates/controller.tmpl",
+    "TemplateSettingsPath":"./templates/test.sett",
+    "OutPath":"./controllers/test.go"
+}

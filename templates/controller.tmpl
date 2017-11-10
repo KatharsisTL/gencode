@@ -1,0 +1,152 @@
+package controllers
+
+import (
+    "gencode_beego/models"
+    "strconv"
+    "log"
+)
+
+type {{EntityName}}Controller struct {
+	BaseController
+}
+
+type {{EntityName}}Result struct {
+    Rows []models.{{EntityName}}
+    Total int
+}
+
+func (c *{{EntityName}}Controller) Get() {
+    if c.Ctx.Input.Param(":ext") == "json" {
+	    r := {{EntityName}}Result{}
+	    if {{GetRight}} {
+		    db := GetDb()
+		    defer db.Close()
+		    c.MakeQueryObj(db){{Join}}Find(&r.Rows)
+		    db{{Join}}Find(&[]models.{{EntityName}}{}).Count(&r.Total)
+	    }
+	    c.Data["json"] = r
+	    c.ServeJSON()
+    }
+}
+
+func (c *{{EntityName}}Controller) Select() {
+	if c.Ctx.Input.Param(":ext") == "json" {
+		objs := []models.{{EntityName}}{}
+		if c.IsAuth() {
+			db := GetDb()
+			defer db.Close()
+			db.Order("{{SelectOrder}}").Find(&objs)
+		}
+		c.Data["json"] = objs
+		c.ServeJSON()
+	}
+}
+
+func (c *{{EntityName}}Controller) GetOne() {
+	if c.Ctx.Input.Param(":ext") == "json" {
+		obj := models.{{EntityName}}{}
+		if {{GetRight}} {
+			s_id := c.Ctx.Input.Param(":id")
+			id, err := strconv.Atoi(s_id)
+			if err != nil {
+				log.Println(err.Error())
+			} else {
+				db := GetDb()
+				defer db.Close()
+				db.First(&obj, id)
+			}
+		}
+		c.Data["json"] = obj
+		c.ServeJSON()
+	}
+}
+
+func (c *{{EntityName}}Controller) Save() {
+	//user := c.GetUser()
+	r := BoolResult{Result: false, Error: "Initial state"}
+	if {{UpdateRight}} {
+		obj := models.{{EntityName}}{}
+		c.ReadInputParameters(&obj)
+		if obj.Id == 0 {
+			c.Create(&obj, &r)
+		} else {
+			c.Update(&obj, &r)
+		}
+	} else {
+		r.Result = false
+		r.Error = "Недостаточно прав для выполнения операции"
+	}
+	c.Data["json"] = r
+	c.ServeJSON()
+}
+
+func (c *{{EntityName}}Controller) Create(obj *models.{{EntityName}}, res *BoolResult) {
+	checkObj := models.{{EntityName}}{}
+	db := GetDb()
+	defer db.Close()
+	db.Where("{{CreateWhereString}}", {{CreateWhereParams}}).First(&checkObj)
+	if checkObj.Id > 0 {
+		res.Result = false
+		res.Error = "Такая запись уже есть"
+	} else {
+		rdb := db.Create(&obj)
+		if rdb.Error != nil {
+			res.Result = false
+			res.Error = rdb.Error.Error()
+		} else {
+			res.Result = true
+			res.Error = "Запись успешно добавлена"
+		}
+	}
+}
+
+func (c *{{EntityName}}Controller) Update(obj *models.{{EntityName}}, res *BoolResult) {
+	checkObj := models.{{EntityName}}{}
+	db := GetDb()
+	defer db.Close()
+	db.Where("{{UpdateWhereString}}", {{UpdateWhereParams}}).First(&checkObj)
+	if checkObj.Id > 0 {
+		res.Result = false
+		res.Error = "Такая запись уже есть"
+	} else {
+		rdb := db.Save(&obj)
+		if rdb.Error != nil {
+			res.Result = false
+			res.Error = rdb.Error.Error()
+		} else {
+			res.Result = true
+			res.Error = "Запись успешно изменена"
+		}
+	}
+}
+
+func (c *{{EntityName}}Controller) Delete() {
+	r := BoolResult{Result: false, Error: "Initial state"}
+	//user := c.GetUser()
+	if {{UpdateRight}} {
+		s_id := c.Ctx.Input.Param(":id")
+		id, err := strconv.Atoi(s_id)
+		if err != nil {
+			r.Result = false
+			r.Error = err.Error()
+		} else {
+			db := GetDb()
+			defer db.Close()
+			obj := models.{{EntityName}}{}
+			db.Where("id = ?", id).First(&obj)
+			rdb := db.Where("id = ?", id).Delete(models.{{EntityName}}{})
+			if rdb.Error != nil {
+				r.Result = false
+				r.Error = rdb.Error.Error()
+			} else {
+				r.Result = true
+				r.Error = "Удаление успешно завершено"
+			}
+		}
+	} else {
+		r.Result = false
+		r.Error = "Недостаточно прав для выполнения операции"
+	}
+	c.Data["json"] = r
+	c.ServeJSON()
+}

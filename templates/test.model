@@ -1,0 +1,36 @@
+{
+    "Name":"test",
+    "TableName":"",
+    "Fields":[
+        {
+            "Name":"Id",
+            "Type":"int",
+            "AdditionPrefix":"gorm",
+            "AdditionPostfix":"AUTO_INCREMENT;index;primary_key",
+            "Required":false,
+            "UserDescr":"",
+            "MinIntVal":0,
+            "MaxIntVal":0
+        },
+        {
+            "Name":"Name",
+            "Type":"string",
+            "AdditionPrefix":"",
+            "AdditionPostfix":"",
+            "Required":true,
+            "UserDescr":"наименование",
+            "MinIntVal":0,
+            "MaxIntVal":0
+        },
+        {
+            "Name":"Age",
+            "Type":"int",
+            "AdditionPrefix":"",
+            "AdditionPostfix":"",
+            "Required":true,
+            "UserDescr":"возраст",
+            "MinIntVal":0,
+            "MaxIntVal":5
+        }
+    ]
+}

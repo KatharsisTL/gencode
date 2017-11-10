@@ -1,0 +1,34 @@
+module MyInstance {
+    export let {{EntityTitle}}Object = Vue.extend({
+        data: function() {
+            return {
+                table: {}
+            }
+        },
+        created() {
+            this.table = new {{EntityTitle}}Table({
+                name: "{{EntityName}}",
+                actionUrls: {
+                    get: "all.json",
+                    getOne: "get.json",
+                    save: "save",
+                    del: "delete"
+                }
+            }, this);
+        },
+        methods: {
+            tableSelectionChange(val) {
+                this.table.selectionChange(val);
+            },
+            tableSortChange(val) {
+                this.table.sortChange(val);
+            },
+            tableChangeClose() {
+                this.table.changeClose();
+            },
+            tableDeleteClose() {
+                this.table.deleteClose();
+            },
+        }
+    });
+}

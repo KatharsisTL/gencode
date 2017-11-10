@@ -1,0 +1,34 @@
+module MyInstance {
+    export class {{EntityTitle}}Table extends BaseTable {
+        public editDialog = {
+            title: "",
+            visible: false,
+            accessories: {
+{{Accessories}}
+            },
+            {{Entity}}
+            {{Rules}}
+        };
+
+        //Перегружаемый метод для редактирования сортировки
+        protected getUrlSortProcess() {
+            switch(this.sort.prop) {
+{{Sort}}
+                default:
+                    break;
+            }
+        }
+
+{{Change}}
+
+{{ChangeClose}}
+
+        public changeSubmitObj(): any {
+            return this.editDialog.{{EntityName}};
+        }
+
+        protected deleteDialogFill(json: any) {
+            {{DelDialogFill}}
+        }
+    }
+}

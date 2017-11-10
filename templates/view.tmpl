@@ -1,0 +1,30 @@
+#workspace
+  .panel-inner
+    .panel-inner__header.primary
+      span <<<TableTitle>>>
+      el-button type="primary" size="small" style="vertical-align: bottom; margin-left: 10px;" @click="table.change()" title="Добавить запись" icon="plus"
+    el-table :border="true" :data="table.data" @selection-change="tableSelectionChange" @sort-change="tableSortChange" :default-sort="<<<DefaultSort>>>"
+<<<Columns>>>
+      el-table-column label="Операции" width="130px"
+        template scope="scope"
+          el-button-group
+            el-button type="warning" size="small" icon="edit" title="Редактировать запись" @click="table.change(scope.row.Id)"
+            el-button type="danger" size="small" icon="minus" title="Удалить запись" @click="table.deleteShow(scope.row.Id)"
+    .panel-inner__body.no-border-bottom
+      el-pagination layout="total, prev, pager, next" :total="table.paginator.total" @size-change="table.load()" @current-change="table.load()" :current-page.sync="table.paginator.currentPage" :page-size="table.paginator.pageSize"
+    .panel-inner__footer.no-border-top
+
+/ Дилог добавления/редактирования
+el-dialog :title="table.editDialog.title" :visible.sync="table.editDialog.visible" :before-close="tableChangeClose"
+  el-form label-position="right" :model="table.editDialog.<<<EntityName>>>" ref="tableChange" :rules="table.editDialog.rules" label-width="240px"
+<<<EditFields>>>
+  span slot="footer"
+    el-button type="primary" @click="table.changeValidation('tableChange')" Сохранить
+    el-button @click="tableChangeClose" Отмена
+
+/ Диалог удаления
+el-dialog :title="table.delDialog.title" :visible.sync="table.delDialog.visible" :before-close="tableDeleteClose"
+  span {{table.delDialog.message}}
+  span slot="footer"
+    el-button type="primary" @click="table.del()" Удалить
+    el-button @click="tableDeleteClose" Отмена

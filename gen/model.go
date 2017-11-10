@@ -48,6 +48,9 @@ type SelectSettings struct {
 	JoinStr string
 	ModelName string
 	GetUrl string
+	//key и value для элемента el-select
+	Key string
+	Value string
 }
 
 type Model struct {
@@ -76,6 +79,16 @@ type ViewSettings struct {
 	//{prop: 'Name' order: 'descending'}
 	//{prop: 'Name'} (в этом случае order устанавливается по-умолчанию в ascending)
 	TableDefaultSort string
+}
+
+type ProjectSettings struct {
+	ProjectPath string
+	TemplatesPath string
+	ModelPath string
+	ControllerPath string
+	TablePath string
+	ObjPath string
+	ViewPath string
 }
 
 //Сохраняет файл на жесткий диск
@@ -172,9 +185,20 @@ func (m *Model) GenerateTableFile(templateFilePath string, outFilePath string) {
 	for _, fld := range m.Fields {
 		switch(fld.Type) {
 		case "int":
-			entityStr += "\t\t\t\t"+fld.Name+": 0,\n"
+			b := true
+			for _, fld1 := range m.Fields {
+				if fld1.Type == "select" && fld1.SelectSettings.ModelName == fld.Name {
+					entityStr += "\t\t\t\t"+strings.Title(fld.Name)+": null,\n"
+					b = false
+				}
+			}
+			if b {
+				entityStr += "\t\t\t\t"+strings.Title(fld.Name)+": 0,\n"
+			}
 		case "string":
-			entityStr += "\t\t\t\t"+fld.Name+": \"\",\n"
+			entityStr += "\t\t\t\t"+strings.Title(fld.Name)+": \"\",\n"
+		case "password":
+			entityStr += "\t\t\t\t"+strings.Title(fld.Name)+": \"\",\n"
 		}
 	}
 	entityStr += "\t\t\t},"
@@ -221,14 +245,15 @@ func (m *Model) GenerateTableFile(templateFilePath string, outFilePath string) {
 
 	//Создаем функцию change-------------------------------------------------------------
 	changeStr := "\t\tpublic change(id: number = 0) {\n"
-	changeStr += "\t\t\t//Если добавление записи\n\t\t\tif(id == 0) {\n"
-	/*for _, fld := range m.Fields {
-		if fld.Type == "string" {
-			changeStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = \"\";\n"
-		} else if fld.Type == "int" {
-			changeStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = 0;\n"
+	//Загружаем accessories
+	for _, fld := range m.Fields {
+		if fld.Type == "select" && fld.SelectSettings.GetUrl != "" {
+			changeStr += "\t\t\tFetch.Json(\""+fld.SelectSettings.GetUrl+"\").then((json)=>{\n" +
+				"\t\t\t\tthis.editDialog.accessories."+strings.ToLower(fld.Name)+" = json;\n"+
+				"\t\t\t});\n"
 		}
-	}*/
+	}
+	changeStr += "\t\t\t//Если добавление записи\n\t\t\tif(id == 0) {\n"
 	changeStr += "\t\t\t\tthis.editDialog.title = \""+strings.Title(m.UserDescr)+". Добавление\";\n"
 	changeStr += "\t\t\t} else {\n"
 	changeStr += "\t\t\t\t//Если редактирование записи\n"
@@ -245,10 +270,19 @@ func (m *Model) GenerateTableFile(templateFilePath string, outFilePath string) {
 	changeCloseStr := "\t\tpublic changeClose() {\n"
 	changeCloseStr += "\t\t\tthis.editDialog.title = \"\";\n"
 	for _, fld := range m.Fields {
-		if fld.Type == "string" {
+		if fld.Type == "string" || fld.Type == "password" {
 			changeCloseStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = \"\";\n"
 		} else if fld.Type == "int" {
-			changeCloseStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = 0;\n"
+			b := true
+			for _, fld1 := range m.Fields {
+				if fld1.Type == "select" && fld1.SelectSettings.ModelName == fld.Name {
+					changeCloseStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = null;\n"
+					b = false
+				}
+			}
+			if b {
+				changeCloseStr += "\t\t\t\tthis.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+" = 0;\n"
+			}
 		}
 	}
 	changeCloseStr += "\t\t\tthis.editDialog.visible = false;\n"
@@ -408,7 +442,13 @@ func (m *Model) GenerateViewFile(templateFilePath string, outFilePath string) {
 				editFieldsStr += "      el-input type=\"password\" v-model=\"table.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.Name)+"\"\n"
 			case "select":
 				editFieldsStr += "    el-form-item label=\""+strings.Title(fld.UserDescr)+"\" prop=\""+strings.Title(fld.SelectSettings.ModelName)+"\"\n"
-				editFieldsStr += "      el-select style=\"width: 100%;\" v-model=\"table.editDialog."+strings.ToLower(m.Name)+"."+strings.Title(fld.SelectSettings.ModelName)+"\" placeholder=\""+strings.Title(fld.UserDescr)+"\"\n"
+				editFieldsStr += "      el-select style=\"width: 100%;\" v-model=\"table.editDialog."+
+					strings.ToLower(m.Name)+"."+strings.Title(fld.SelectSettings.ModelName)+
+					"\" placeholder=\""+strings.Title(fld.UserDescr)+"\"\n"
+				editFieldsStr += "        el-option v-for=\""+strings.ToLower(fld.Name)+" in table.editDialog.accessories."+
+					strings.ToLower(fld.Name)+"\" :key=\""+strings.ToLower(fld.Name)+"."+strings.Title(fld.SelectSettings.Key)+"\" "+
+					":label=\""+strings.ToLower(fld.Name)+"."+strings.Title(fld.SelectSettings.Value)+"\" "+
+					":value=\""+strings.ToLower(fld.Name)+"."+strings.Title(fld.SelectSettings.Key)+"\" "
 			}
 		}
 	}
@@ -417,4 +457,26 @@ func (m *Model) GenerateViewFile(templateFilePath string, outFilePath string) {
 
 	//Сохраняем сформированный файл
 	SaveOutFile(outFilePath, tmpl)
+}
+
+func (m *Model) GenerateAll(settings ProjectSettings) {
+	settings.ProjectPath = setSlashInPath(settings.ProjectPath)
+	settings.TemplatesPath = setSlashInPath(settings.TemplatesPath)
+	settings.ModelPath = setSlashInPath(settings.ModelPath)
+	settings.ControllerPath = setSlashInPath(settings.ControllerPath)
+	settings.TablePath = setSlashInPath(settings.TablePath)
+	settings.ObjPath = setSlashInPath(settings.ObjPath)
+	settings.ViewPath = setSlashInPath(settings.ViewPath)
+	m.GenerateModelFile(settings.ProjectPath+settings.ModelPath+m.GetNameLower()+".go")
+	m.GenerateControllerFile(settings.TemplatesPath+"controller.tmpl", settings.ProjectPath+settings.ControllerPath+m.GetNameLower()+".go")
+	m.GenerateTableFile(settings.TemplatesPath+"table.tmpl", settings.ProjectPath+settings.TablePath+m.GetNameLower()+"Table.ts")
+	m.GenerateObjFile(settings.TemplatesPath+"obj.tmpl", settings.ProjectPath+settings.ObjPath+m.GetNameLower()+"Obj.ts")
+	m.GenerateViewFile(settings.TemplatesPath+"view.tmpl", settings.ProjectPath+settings.ViewPath+m.GetNameLower()+".ace")
+}
+
+func setSlashInPath(path string) (string) {
+	if path[len(path)-1:] != "/" {
+		path += "/"
+	}
+	return path
 }
